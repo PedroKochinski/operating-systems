@@ -1,4 +1,4 @@
-//GRR20206144 Pedro Henrique Kochinki Silva
+// GRR20206144 Pedro Henrique Kochinki Silva
 #include "queue.h"
 #include <stdio.h>
 
