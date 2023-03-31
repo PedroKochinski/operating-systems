@@ -1,7 +1,8 @@
+//GRR20206144 Pedro Henrique Kochinki Silva
 #include "queue.h"
-
 #include <stdio.h>
 
+/*returns number of elements in the queue*/
 int queue_size(queue_t *queue) {
     int count = 0;
     queue_t *first = queue;
@@ -19,6 +20,7 @@ int queue_size(queue_t *queue) {
     return count;
 }
 
+/* Prints the contents of the queue */
 void queue_print(char *name, queue_t *queue, void print_elem(void *)) {
     printf("%s", name);
     if (queue == NULL) {
@@ -26,17 +28,21 @@ void queue_print(char *name, queue_t *queue, void print_elem(void *)) {
     } else {
         queue_t *first = queue;
         printf("[");
+        /* Iterate over the elements in the queue */
         for(int i = 0; i < queue_size(queue)-1; i++){
+        /* Print the current element using the given function */
             print_elem(first);
             printf(" ");
             first = first->next;
         }
+        /* Print the last element */
         print_elem(first);
         printf("]");
     }
     printf("\n");
 }
 
+/* Appends an element to the end of the queue */
 int queue_append(queue_t **queue, queue_t *elem) {
     /* Verify if the element exists */
     if (elem == NULL) {
@@ -70,6 +76,7 @@ int queue_append(queue_t **queue, queue_t *elem) {
     return 0;
 }
 
+/* Removes an element from the queue */
 int queue_remove(queue_t **queue, queue_t *elem) {
     /* Verify if the queue exists */
     if (*queue == NULL) {
