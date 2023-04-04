@@ -4,13 +4,15 @@
 #include "ppos.h"
 #define STACKSIZE 64 * 1024 /* tamanho de pilha das threads */
 
-task_t *main_task, *curr; int pCounter = 0;
+task_t *main_task, *curr;
+ucontext_t main_context;
+
+int pCounter = 0;
 
 void ppos_init() {
     /* disables the output buffer of the standard output (stdout), used by the printf function */
     setvbuf(stdout, 0, _IONBF, 0);
     task_t main;
-    ucontext_t main_context;
 
     /*save the main context*/
     char *stack;
@@ -31,7 +33,6 @@ void ppos_init() {
     /*fill task fields*/
     main.next = NULL;
     main.prev = NULL;
-    pCounter++;
     main.id = pCounter;
     main.status = 1;
     main.context = main_context;
@@ -40,7 +41,7 @@ void ppos_init() {
     main_task = &main;
 
 #ifdef DEBUG
-    printf("ppos_init: sistema iniciado. Tarefa em execução: %d\n", curr->id);
+    printf("ppos_init: System initiated. Current task executing: %d\n", curr->id);
 #endif
 }
 
@@ -56,12 +57,12 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg) {
         (task->context).uc_stack.ss_flags = 0;
         (task->context).uc_link = 0;
     } else {
-        perror("Erro na criação da pilha: ");
+        perror("Error creating Stack: ");
         exit(1);
     }
 
     /*fill task fields*/
-    pCounter++;
+    pCounter+=1;
     task->next = NULL;
     task->prev = NULL;
     task->id = pCounter;
@@ -70,7 +71,7 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg) {
     /*set the function that triggers when the context changes*/
     makecontext(&(task->context), (void *)start_func, 1, arg);
 #ifdef DEBUG
-    printf("task_init: iniciada tarefa %d\n", task->id);
+    printf("task_init: Task initiated with id %d\n", task->id);
 #endif
     return task->id;
 }
@@ -81,7 +82,10 @@ int task_id() {
 }
 
 void task_exit(int exit_code) {
-    /*set the curent task status to the exit code*/
+/*set the curent task status to the exit code*/
+#ifdef DEBUG
+    printf("task_exit: Finished task %d with exit code %d\n", curr->id, exit_code);
+#endif
     curr->status = exit_code;
     task_switch(main_task);
 }
@@ -90,7 +94,7 @@ int task_switch(task_t *task) {
     task_t *aux = curr;
     curr = task;
 #ifdef DEBUG
-    printf("task_switch: trocou da tarefa %d para a tarefa %d\n", aux->id, task->id);
+    printf("task_switch: Switched from task %d to task %d\n", aux->id, task->id);
 #endif
     swapcontext(&(aux->context), &(task->context));
     return 0;
