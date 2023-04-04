@@ -62,7 +62,7 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg) {
     }
 
     /*fill task fields*/
-    pCounter+=1;
+    pCounter += 1;
     task->next = NULL;
     task->prev = NULL;
     task->id = pCounter;
@@ -82,15 +82,16 @@ int task_id() {
 }
 
 void task_exit(int exit_code) {
-/*set the curent task status to the exit code*/
 #ifdef DEBUG
     printf("task_exit: Finished task %d with exit code %d\n", curr->id, exit_code);
 #endif
+    /*set the curent task status to the exit code and switch to main task*/
     curr->status = exit_code;
     task_switch(main_task);
 }
 
 int task_switch(task_t *task) {
+    /*change pointers and swap context*/
     task_t *aux = curr;
     curr = task;
 #ifdef DEBUG
