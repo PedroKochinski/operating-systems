@@ -57,7 +57,7 @@ void ppos_init() {
     /*cast task_t to queue_t*/
     queue_append((queue_t **)&dispatcher, (queue_t *)main_task);
 #ifdef DEBUG
-    printf("ppos_init: System initiated. Current task executing: %d\n", curr->id);
+    printf("\033[4;32m\033[3mppos_init:\033[0m \033[3;34mSystem initiated. Current task executing: %d\033[0m\n", curr->id);
 #endif
 }
 
@@ -91,7 +91,7 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg) {
     /*cast task_t to queue_t*/
     queue_append((queue_t **)&dispatcher, (queue_t *)task);
 #ifdef DEBUG
-    printf("task_init: Task initiated with id %d\n", task->id);
+    printf("\033[4;32m\033[3mtask_init:\033[0m \033[3;34mTask initiated with id %d by task %d\033[0m\n", task->id, curr->id);
 #endif
     return task->id;
 }
@@ -103,7 +103,7 @@ int task_id() {
 
 void task_exit(int exit_code) {
 #ifdef DEBUG
-    printf("task_exit: Finished task %d with exit code %d\n", curr->id, exit_code);
+    printf("\033[4;33m\033[3mtask_exit:\033[0m \033[3;34mFinished task %d with exit code %d\033[0m\n", curr->id, exit_code);
 #endif
     /*set the curent task status to the exit code and switch to main task*/
     curr->status = exit_code;
@@ -111,6 +111,9 @@ void task_exit(int exit_code) {
     if (curr == dispatcher) {
         free(dispatcher->context.uc_stack.ss_sp);
         free(dispatcher);
+#ifdef DEBUG
+        printf("\033[4;33m\033[3mtask_exit:\033[0m \033[3;34mExitting dispatcher\033[0m\n");
+#endif
         exit(0);
     }
     /*else, the control is given back to dispatcher*/
@@ -122,22 +125,20 @@ int task_switch(task_t *task) {
     task_t *aux = curr;
     curr = task;
 #ifdef DEBUG
-    printf("task_switch: Switched from task %d to task %d\n", aux->id, task->id);
+    printf("\033[4;36m\033[3mtask_switch:\033[0m \033[3;34mSwitched from task %d to task %d\033[0m\n", aux->id, task->id);
 #endif
     swapcontext(&(aux->context), &(task->context));
     return 0;
 }
 
 void task_yield() {
-#ifdef DEBUG
-    printf("task_yield: Giving back control from task %d to dispatcher\n", curr->id);
-#endif
     /*removes que current task from the dispatcher list and inserts again in the end*/
     /*cast task_t to queue_t*/
     queue_remove((queue_t **)&dispatcher, (queue_t *)curr);
     queue_append((queue_t **)&dispatcher, (queue_t *)curr);
 #ifdef DEBUG
-    printf("task_yield: Task %d has been moved to the end of the queue\n", curr->id);
+    printf("\033[4;35m\033[3mtask_yield:\033[0m \033[3;34mTask %d has been moved to the end of the queue\033[0m\n", curr->id);
+    printf("\033[4;35m\033[3mtask_yield:\033[0m \033[3;34mGiving back control from task %d to dispatcher\033[0m\n", curr->id);
 #endif
     /*give control back to dispatcher*/
     task_switch(dispatcher);
@@ -160,20 +161,15 @@ void task_delete(task_t *task) {
     /*set task status to TERMINATED*/
     task->status = TERMINATED;
 #ifdef DEBUG
-    printf("task_delete: Task %d deleted\n", task->id);
+    printf("\033[4;31m\033[3mtask_delete:\033[0m \033[3;34mTask %d deleted\033[0m\n", task->id);
 #endif
 }
 void dispatcher_function() {
-    task_t *next;  // variável para guardar a próxima tarefa a executar
-
+    task_t *next;                                    // variável para guardar a próxima tarefa a executar
     while (queue_size((queue_t *)dispatcher) > 1) {  // enquanto houverem tarefas de usuário
-
-        next = scheduler();  // escolhe a próxima tarefa a executar
-
-        if (next != NULL) {  // escalonador escolheu uma tarefa?
-
-            task_switch(next);  // transfere controle para a próxima tarefa
-
+        next = scheduler();                          // escolhe a próxima tarefa a executar
+        if (next != NULL) {                          // escalonador escolheu uma tarefa?
+            task_switch(next);                       // transfere controle para a próxima tarefa
             // voltando ao dispatcher, trata a tarefa de acordo com seu estado
             switch (next->status) {
                 case READY:
@@ -182,6 +178,5 @@ void dispatcher_function() {
             }
         }
     }
-
     task_exit(0);  // encerra a tarefa dispatcher
 }
