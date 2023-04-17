@@ -3,10 +3,11 @@
 
 #include "ppos.h"
 #include "queue.h"
-#define STACKSIZE 64 * 1024 /* tamanho de pilha das threads */
+#define STACKSIZE 64 * 1024 /* threads stach size */
 
 task_t *main_task, *curr, *dispatcher;
 ucontext_t main_context;
+int global_age = 0;
 
 /*define the status codes*/
 typedef enum {
@@ -26,13 +27,54 @@ void print_elem(void *ptr) {
         return;
 
     elem->prev ? printf("%d", elem->prev->id) : printf("*");
-    printf("<%d>", elem->id);
+    printf("<%d,%d>", elem->id, elem->dinamic_prio);
     elem->next ? printf("%d", elem->next->id) : printf("*");
 }
 #endif
 
+void task_setprio(task_t *task, int prio) {
+#ifdef DEBUG
+    printf("\033[4;33m\033[3mtask_setprio:\n\033[0m");
+#endif
+    if (prio >= -20 && prio <= 20) {
+        task->static_prio = prio;
+        task->dinamic_prio = prio;
+#ifdef DEBUG
+        printf("\033[3;34m\033[3m    Setting task %d to priority %d\n\033[0m", task->id, prio);
+        queue_print("\033[3;34m    Task queue before:\033[0m", (queue_t *)dispatcher, print_elem);  // cast task_t to queue_t
+        
+#endif
+    } else
+        fprintf(stderr, "%s", "The task priority must belong to the range [-20, 20]\n");
+}
+
+int task_getprio(task_t *task) {
+    return task == NULL ? curr->dinamic_prio : task->dinamic_prio;
+}
+
+task_t *get_max_prio(task_t *dispatcher) {
+    task_t *aux = dispatcher->next;
+    task_t *max = aux;
+    while (aux != dispatcher) {
+        if (max->dinamic_prio > aux->dinamic_prio) max = aux;
+        aux = aux->next;
+    }
+    return max;
+}
+
+void task_aging(task_t *dispatcher, int alpha) {
+    /*iterates over task queue and increase priority based on global age*/
+    for (int i = 0; i < queue_size((queue_t *)dispatcher); i++) {
+        if(dispatcher->next->dinamic_prio - alpha >= -20) dispatcher->next->dinamic_prio -= alpha;
+    }
+}
+
 task_t *scheduler() {
-    return dispatcher->next;
+    task_t *next = get_max_prio(dispatcher);
+    if( global_age < 20) global_age++;
+    printf("age %d\n", global_age);
+    task_aging(dispatcher, global_age);
+    return next;
 }
 
 void task_delete(task_t *task) {
@@ -112,7 +154,9 @@ void ppos_init() {
     main_task->next = NULL;
     main_task->prev = NULL;
     main_task->id = pCounter;
-    main_task->status = 1;
+    main_task->status = RUNNING;
+    main_task->static_prio = 0;
+    main_task->dinamic_prio = 0;
     main_task->context = main_context;
     /*update the current task to the main*/
     curr = main_task;
@@ -153,16 +197,18 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg) {
     task->next = NULL;
     task->prev = NULL;
     task->id = pCounter;
-    task->status = 1;
-
+    task->status = SUSPENDED;
+    task->static_prio = 0;
+    task->dinamic_prio = 0;
     /*set the function that triggers when the context changes*/
+    
     arg == NULL ? makecontext(&(task->context), (void *)start_func, 0) : makecontext(&(task->context), (void *)start_func, 1, arg);
     /*append the task to dispatcher*/
     /*cast task_t to queue_t*/
     queue_append((queue_t **)&dispatcher, (queue_t *)task);
 #ifdef DEBUG
     printf("\033[3;34m    Task initiated with id %d by task %d\033[0m\n", task->id, task_id());
-#endif
+#endif 
     return task->id;
 }
 
@@ -173,11 +219,12 @@ int task_id() {
 
 void task_exit(int exit_code) {
 #ifdef DEBUG
-    printf("\033[4;35m\033[3mtask_exit:\n\033[0m");
+    printf("\033[4;33m\033[3mtask_exit:\n\033[0m");
     printf("\033[3;34m    Finished task %d with exit code %d\033[0m\n", task_id(), exit_code);
 #endif
     /*set the curent task status to the exit code and switch to main task*/
     curr->status = exit_code;
+    curr->dinamic_prio = curr->static_prio;
     /*if the current task is the dispatcher the program finish*/
     if (curr == dispatcher) {
         free(dispatcher->context.uc_stack.ss_sp);
@@ -197,7 +244,9 @@ void task_exit(int exit_code) {
 int task_switch(task_t *task) {
     /*change pointers and swap context*/
     task_t *aux = curr;
+    // aux->status = SUSPENDED;
     curr = task;
+    // curr->status = RUNNING;
 #ifdef DEBUG
     printf("\033[4;36m\033[3mtask_switch:\n\033[0m");
     printf("\033[3;34m    Switched from task %d to task %d\033[0m\n", aux->id, task->id);

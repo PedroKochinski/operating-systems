@@ -9,6 +9,9 @@ tasks: $(objs)
 
 teste: $(objs)
 
+debug: CFLAGS += -DDEBUG
+debug: clean tasks teste
+
 clean:
 	-rm -f $(objs) *~
  
