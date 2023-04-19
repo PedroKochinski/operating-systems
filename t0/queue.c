@@ -1,6 +1,5 @@
 // GRR20206144 Pedro Henrique Kochinki Silva
 #include "queue.h"
-
 #include <stdio.h>
 
 /*returns number of elements in the queue*/
@@ -10,6 +9,7 @@ int queue_size(queue_t *queue) {
     queue_t *aux = first;
     /* Verify if the list is empty */
     if (first == NULL) {
+        printf("fila vazia %d\n", count);
         return 0;
     }
     /* Count the number of elements in the list */
@@ -29,8 +29,8 @@ void queue_print(char *name, queue_t *queue, void print_elem(void *)) {
         queue_t *first = queue;
         printf("[");
         /* Iterate over the elements in the queue */
-        for (int i = 0; i < queue_size(queue) - 1; i++) {
-            /* Print the current element using the given function */
+        for(int i = 0; i < queue_size(queue)-1; i++){
+        /* Print the current element using the given function */
             print_elem(first);
             printf(" ");
             first = first->next;
@@ -56,7 +56,7 @@ int queue_append(queue_t **queue, queue_t *elem) {
         return 1;
     }
 
-    queue_t *first = *queue; 
+    queue_t *first = *queue;
 
     if (first == NULL) {
         /* The element is the first of the queue */
@@ -105,7 +105,7 @@ int queue_remove(queue_t **queue, queue_t *elem) {
         elem->next = NULL;
         elem->prev = NULL;
         return 0;
-    }
+    } 
 
     queue_t *first = *queue;
     queue_t *aux = first->next;

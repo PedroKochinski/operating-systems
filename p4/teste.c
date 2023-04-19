@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include "ppos.h"
 
+#define flushprintf(...) printf(__VA_ARGS__); fflush(stdout)
+
 task_t Pang, Peng, Ping, Pong, Pung ;
 
 // corpo das threads
@@ -19,7 +21,7 @@ void Body (void * arg)
 
   for (i=0; i<10; i++)
   {
-    printf ("%s: %d\n", (char *) arg, i) ;
+    printf ("%s: %d (prioridade %d)\n", (char *) arg, i, task_getprio(NULL)) ;
     task_yield ();
   }
   printf ("%s: fim\n", (char *) arg) ;
@@ -34,6 +36,7 @@ int main (int argc, char *argv[])
 
   task_init (&Pang, Body, "    Pang") ;
   task_setprio (&Pang, 0);
+
   task_init (&Peng, Body, "        Peng") ;
   task_setprio (&Peng, 2);
 
@@ -46,7 +49,7 @@ int main (int argc, char *argv[])
   task_init (&Pung, Body, "                    Pung") ;
   task_setprio (&Pung, 8);
 
-  task_yield () ;
+  // task_yield () ;
 
   printf ("main: fim\n");
   task_exit (0) ;

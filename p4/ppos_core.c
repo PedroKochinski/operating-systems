@@ -4,10 +4,9 @@
 #include "ppos.h"
 #include "queue.h"
 #define STACKSIZE 64 * 1024 /* threads stach size */
-
-task_t *main_task, *curr, *dispatcher;
+#define ALPHA -1
+task_t *main_task, *curr, *dispatcher, *task_queue;
 ucontext_t main_context;
-int global_age = 0;
 
 /*define the status codes*/
 typedef enum {
@@ -41,8 +40,7 @@ void task_setprio(task_t *task, int prio) {
         task->dinamic_prio = prio;
 #ifdef DEBUG
         printf("\033[3;34m\033[3m    Setting task %d to priority %d\n\033[0m", task->id, prio);
-        queue_print("\033[3;34m    Task queue before:\033[0m", (queue_t *)dispatcher, print_elem);  // cast task_t to queue_t
-        
+        queue_print("\033[3;34m    Task queue before:\033[0m", (queue_t *)task_queue, print_elem);  // cast task_t to queue_t
 #endif
     } else
         fprintf(stderr, "%s", "The task priority must belong to the range [-20, 20]\n");
@@ -52,28 +50,38 @@ int task_getprio(task_t *task) {
     return task == NULL ? curr->dinamic_prio : task->dinamic_prio;
 }
 
-task_t *get_max_prio(task_t *dispatcher) {
-    task_t *aux = dispatcher->next;
-    task_t *max = aux;
-    while (aux != dispatcher) {
-        if (max->dinamic_prio > aux->dinamic_prio) max = aux;
+/*returns the max priority element in the queue*/
+task_t *get_max_prio(task_t *queue) {
+    if (queue == NULL) return NULL;
+    task_t *aux = queue;
+    /*in posix system, the lower the number the higher the priority*/
+    task_t *min = aux;
+    for (int i = 0; i < queue_size((queue_t *)queue); i++) {
+        if (min->dinamic_prio > aux->dinamic_prio) min = aux;
         aux = aux->next;
     }
-    return max;
+    return min;
 }
 
-void task_aging(task_t *dispatcher, int alpha) {
-    /*iterates over task queue and increase priority based on global age*/
-    for (int i = 0; i < queue_size((queue_t *)dispatcher); i++) {
-        if(dispatcher->next->dinamic_prio - alpha >= -20) dispatcher->next->dinamic_prio -= alpha;
+void task_aging() {
+    /*iterates over task queue and increase priority based on global alpha*/
+#ifdef DEBUG
+    printf("\033[4;31m\033[3maging....:\n\033[0m");
+#endif
+    task_t *aux = task_queue;
+    for (int i = 0; i < queue_size((queue_t *)task_queue); i++) {
+        if (aux->dinamic_prio + ALPHA >= -20) aux->dinamic_prio += ALPHA;
+        aux = aux->next;
     }
 }
 
 task_t *scheduler() {
-    task_t *next = get_max_prio(dispatcher);
-    if( global_age < 20) global_age++;
-    printf("age %d\n", global_age);
-    task_aging(dispatcher, global_age);
+    task_t *next;
+
+    task_aging();
+
+    next = get_max_prio(task_queue);
+
     return next;
 }
 
@@ -86,39 +94,38 @@ void task_delete(task_t *task) {
         task_switch(dispatcher);
     }
     /*remove task from queue*/
-    queue_remove((queue_t **)&dispatcher, (queue_t *)task);
+    queue_remove((queue_t **)&task_queue, (queue_t *)task);
 #ifdef DEBUG
     printf("\033[3;34m    Deleting task %d\033[0m\n", task->id);
 #endif
     /*free stack memory*/
     free(task->context.uc_stack.ss_sp);
-    free(task);
+    if (task == main_task) free(task);
 }
 
 void dispatcher_function() {
     task_t *next;
     /*while there are tasks in the queue*/
-    while (queue_size((queue_t *)dispatcher) > 1) {
+    while (queue_size((queue_t *)task_queue) > 0) {
         /*the scheduler select the next task*/
         next = scheduler();
 #ifdef DEBUG
         printf("\033[4;36m\033[3mdispatcher_function:\n\033[0m");
         printf("\033[3;34m    Next task is %d. Current task executing: %d\033[0m\n", next->id, task_id());
-        queue_print("\033[3;34m    Task queue before:\033[0m", (queue_t *)dispatcher, print_elem);  // cast task_t to queue_t
+        queue_print("\033[3;34m    Task queue before:\033[0m", (queue_t *)task_queue, print_elem);  // cast task_t to queue_t
 #endif
         if (next != NULL) {
             /*switch tasks*/
-            /*voltando ao dispatcher, trata a tarefa de acordo com seu estado*/
             switch (next->status) {
                 case TERMINATED:
                     task_delete(next);
                     next = scheduler();
                     break;
             }
-            task_switch(next);
+            if (next != NULL) task_switch(next);
 #ifdef DEBUG
             printf("\033[4;36m\033[3mdispatcher_function:\n\033[0m");
-            queue_print("\033[3;34m    Task queue after:\033[0m", (queue_t *)dispatcher, print_elem);  // cast task_t to queue_t
+            queue_print("\033[3;34m    Task queue after:\033[0m", (queue_t *)task_queue, print_elem);  // cast task_t to queue_t
 #endif
         }
     }
@@ -162,11 +169,16 @@ void ppos_init() {
     curr = main_task;
 
     /*create dispatcher*/
+    dispatcher = calloc(1, sizeof(task_t));
+    if (!dispatcher) {
+        perror("Erro na criação do dispatcher: ");
+        exit(1);
+    }
     task_init(dispatcher, dispatcher_function, NULL);
 
-    /*append the main task to dispatcher*/
+    /*append the main task to task_queue*/
     /*cast task_t to queue_t*/
-    queue_append((queue_t **)&dispatcher, (queue_t *)main_task);
+    queue_append((queue_t **)&task_queue, (queue_t *)main_task);
 #ifdef DEBUG
     printf("\033[3;34m    System initiated. Current task executing: %d\033[0m\n", task_id());
 #endif
@@ -176,17 +188,17 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg) {
 #ifdef DEBUG
     printf("\033[4;32m\033[3mtask_init:\n\033[0m");
 #endif
+    ucontext_t context;
     char *stack;
     stack = malloc(STACKSIZE);
-    task = calloc(1, sizeof(task_t));
-    getcontext(&(task->context));
+    getcontext(&context);
 
     /*fill stack fields*/
     if (stack) {
-        (task->context).uc_stack.ss_sp = stack;
-        (task->context).uc_stack.ss_size = STACKSIZE;
-        (task->context).uc_stack.ss_flags = 0;
-        (task->context).uc_link = 0;
+        context.uc_stack.ss_sp = stack;
+        context.uc_stack.ss_size = STACKSIZE;
+        context.uc_stack.ss_flags = 0;
+        context.uc_link = 0;
     } else {
         perror("Error creating Stack: ");
         exit(1);
@@ -201,14 +213,15 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg) {
     task->static_prio = 0;
     task->dinamic_prio = 0;
     /*set the function that triggers when the context changes*/
-    
-    arg == NULL ? makecontext(&(task->context), (void *)start_func, 0) : makecontext(&(task->context), (void *)start_func, 1, arg);
+
+    arg == NULL ? makecontext(&context, (void *)start_func, 0) : makecontext(&context, (void *)start_func, 1, arg);
+    task->context = context;
     /*append the task to dispatcher*/
     /*cast task_t to queue_t*/
-    queue_append((queue_t **)&dispatcher, (queue_t *)task);
+    if (task != dispatcher) queue_append((queue_t **)&task_queue, (queue_t *)task);
 #ifdef DEBUG
     printf("\033[3;34m    Task initiated with id %d by task %d\033[0m\n", task->id, task_id());
-#endif 
+#endif
     return task->id;
 }
 
@@ -256,21 +269,19 @@ int task_switch(task_t *task) {
 }
 
 void task_yield() {
-    /*removes que current task from the dispatcher list and inserts again in the end*/
 #ifdef DEBUG
     printf("\033[4;35m\033[3mtask_yield:\n\033[0m");
-    queue_print("\033[3;34m    Queue before:\033[0m", (queue_t *)dispatcher, print_elem);
+    queue_print("\033[3;34m    Queue before:\033[0m", (queue_t *)task_queue, print_elem);
 #endif
-    task_t *aux = dispatcher->next;
-    aux = dispatcher->next->next;
-    aux->next->prev = dispatcher;
-    dispatcher->prev->next = dispatcher->next;
-    dispatcher->next->prev = dispatcher->prev;
-    dispatcher->next->next = dispatcher;
-    dispatcher->prev = dispatcher->next;
-    dispatcher->next = aux;
+    /*removes que current task from the dispatcher list and inserts again in the end*/
+    if (curr != dispatcher) {
+        curr->dinamic_prio = curr->static_prio;
+        queue_remove((queue_t **)&task_queue, (queue_t *)curr);
+        queue_append((queue_t **)&task_queue, (queue_t *)curr);
+    }
+
 #ifdef DEBUG
-    queue_print("\033[3;34m    Queue after:\033[0m", (queue_t *)dispatcher, print_elem);  // cast task_t to queue_t
+    queue_print("\033[3;34m    Queue after:\033[0m", (queue_t *)task_queue, print_elem);  // cast task_t to queue_t
 #endif
 
 #ifdef DEBUG
