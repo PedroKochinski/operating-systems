@@ -1,62 +1,62 @@
 main: inicio
 main: fim
-    Pang: inicio (prioridade -2)
-    Pang: 0 (prioridade -2)
-        Peng: inicio (prioridade -1)
-        Peng: 0 (prioridade -1)
-    Pang: 1 (prioridade -2)
-            Ping: inicio (prioridade -1)
-            Ping: 0 (prioridade -1)
-    Pang: 2 (prioridade -2)
-        Peng: 1 (prioridade -2)
-                Pong: inicio (prioridade -2)
-                Pong: 0 (prioridade -2)
-    Pang: 3 (prioridade -3)
-                    Pung: inicio (prioridade -2)
-                    Pung: 0 (prioridade -2)
-            Ping: 1 (prioridade -2)
-        Peng: 2 (prioridade -3)
-    Pang: 4 (prioridade -4)
-    Pang: 5 (prioridade -1)
-                Pong: 1 (prioridade -1)
-        Peng: 3 (prioridade -2)
-    Pang: 6 (prioridade -3)
-            Ping: 2 (prioridade -3)
-    Pang: 7 (prioridade -2)
-                    Pung: 1 (prioridade -2)
-        Peng: 4 (prioridade -3)
-    Pang: 8 (prioridade -3)
-                Pong: 2 (prioridade -2)
-            Ping: 3 (prioridade -2)
-    Pang: 9 (prioridade -3)
-        Peng: 5 (prioridade -3)
+    Pang: inicio (prioridade 0)
+    Pang: 0
+    Pang: 1
+        Peng: inicio (prioridade 2)
+        Peng: 0
+    Pang: 2
+            Ping: inicio (prioridade 4)
+            Ping: 0
+    Pang: 3
+        Peng: 1
+                Pong: inicio (prioridade 6)
+                Pong: 0
+    Pang: 4
+                    Pung: inicio (prioridade 8)
+                    Pung: 0
+    Pang: 5
+        Peng: 2
+            Ping: 1
+    Pang: 6
+    Pang: 7
+        Peng: 3
+                Pong: 1
+    Pang: 8
+            Ping: 2
+    Pang: 9
+        Peng: 4
+                    Pung: 1
     Pang: fim
-                    Pung: 2 (prioridade -1)
-            Ping: 4 (prioridade -2)
-        Peng: 6 (prioridade -3)
-                Pong: 3 (prioridade -3)
-        Peng: 7 (prioridade 0)
-            Ping: 5 (prioridade 0)
-        Peng: 8 (prioridade 0)
-                    Pung: 3 (prioridade 1)
-        Peng: 9 (prioridade 0)
-                Pong: 4 (prioridade 0)
-            Ping: 6 (prioridade -1)
+        Peng: 5
+            Ping: 3
+                Pong: 2
+        Peng: 6
+        Peng: 7
+            Ping: 4
+                    Pung: 2
+        Peng: 8
+                Pong: 3
+        Peng: 9
+            Ping: 5
         Peng: fim
-            Ping: 7 (prioridade 1)
-                    Pung: 4 (prioridade 1)
-                Pong: 5 (prioridade 0)
-            Ping: 8 (prioridade 1)
-            Ping: 9 (prioridade 3)
-                Pong: 6 (prioridade 3)
+            Ping: 6
+                Pong: 4
+                    Pung: 3
+            Ping: 7
+            Ping: 8
+                Pong: 5
+            Ping: 9
             Ping: fim
-                    Pung: 5 (prioridade 2)
-                Pong: 7 (prioridade 2)
-                    Pung: 6 (prioridade 5)
-                Pong: 8 (prioridade 4)
-                Pong: 9 (prioridade 5)
-                    Pung: 7 (prioridade 5)
+                    Pung: 4
+                Pong: 6
+                Pong: 7
+                    Pung: 5
+                Pong: 8
+                Pong: 9
                 Pong: fim
-                    Pung: 8 (prioridade 5)
-                    Pung: 9 (prioridade 7)
+                    Pung: 6
+                    Pung: 7
+                    Pung: 8
+                    Pung: 9
                     Pung: fim

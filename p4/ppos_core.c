@@ -47,41 +47,18 @@ void task_setprio(task_t *task, int prio) {
 }
 
 int task_getprio(task_t *task) {
-    return task == NULL ? curr->dinamic_prio : task->dinamic_prio;
-}
-
-/*returns the max priority element in the queue*/
-task_t *get_max_prio(task_t *queue) {
-    if (queue == NULL) return NULL;
-    task_t *aux = queue;
-    /*in posix system, the lower the number the higher the priority*/
-    task_t *min = aux;
-    for (int i = 0; i < queue_size((queue_t *)queue); i++) {
-        if (min->dinamic_prio > aux->dinamic_prio) min = aux;
-        aux = aux->next;
-    }
-    return min;
-}
-
-void task_aging() {
-    /*iterates over task queue and increase priority based on global alpha*/
-#ifdef DEBUG
-    printf("\033[4;31m\033[3maging....:\n\033[0m");
-#endif
-    task_t *aux = task_queue;
-    for (int i = 0; i < queue_size((queue_t *)task_queue); i++) {
-        if (aux->dinamic_prio + ALPHA >= -20) aux->dinamic_prio += ALPHA;
-        aux = aux->next;
-    }
+    return task == NULL ? curr->static_prio : task->static_prio;
 }
 
 task_t *scheduler() {
-    task_t *next;
 
-    task_aging();
-
-    next = get_max_prio(task_queue);
-
+    task_t *aux = task_queue;
+    task_t *next = aux;
+    for (int i = 0; i < queue_size((queue_t *)task_queue); i++) {
+        if (aux->dinamic_prio + ALPHA >= -20 && aux != curr) aux->dinamic_prio += ALPHA; //increase priority
+        if (next->dinamic_prio > aux->dinamic_prio) next = aux; //select the highest
+        aux = aux->next;
+    }
     return next;
 }
 
@@ -175,9 +152,7 @@ void ppos_init() {
         exit(1);
     }
     task_init(dispatcher, dispatcher_function, NULL);
-
     /*append the main task to task_queue*/
-    /*cast task_t to queue_t*/
     queue_append((queue_t **)&task_queue, (queue_t *)main_task);
 #ifdef DEBUG
     printf("\033[3;34m    System initiated. Current task executing: %d\033[0m\n", task_id());
@@ -217,7 +192,6 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg) {
     arg == NULL ? makecontext(&context, (void *)start_func, 0) : makecontext(&context, (void *)start_func, 1, arg);
     task->context = context;
     /*append the task to dispatcher*/
-    /*cast task_t to queue_t*/
     if (task != dispatcher) queue_append((queue_t **)&task_queue, (queue_t *)task);
 #ifdef DEBUG
     printf("\033[3;34m    Task initiated with id %d by task %d\033[0m\n", task->id, task_id());
@@ -272,22 +246,10 @@ void task_yield() {
 #ifdef DEBUG
     printf("\033[4;35m\033[3mtask_yield:\n\033[0m");
     queue_print("\033[3;34m    Queue before:\033[0m", (queue_t *)task_queue, print_elem);
-#endif
-    /*removes que current task from the dispatcher list and inserts again in the end*/
-    if (curr != dispatcher) {
-        curr->dinamic_prio = curr->static_prio;
-        queue_remove((queue_t **)&task_queue, (queue_t *)curr);
-        queue_append((queue_t **)&task_queue, (queue_t *)curr);
-    }
-
-#ifdef DEBUG
-    queue_print("\033[3;34m    Queue after:\033[0m", (queue_t *)task_queue, print_elem);  // cast task_t to queue_t
-#endif
-
-#ifdef DEBUG
-    printf("\033[3;34m    Task %d has been moved to the end of the queue\033[0m\n", task_id());
+    printf("\033[3;34m    Task %d has yielded\033[0m\n", task_id());
     printf("\033[3;34m    Giving back control from task %d to dispatcher\033[0m\n", task_id());
 #endif
-    /*give control back to dispatcher*/
+    /*give control back to dispatcher and reseting priority*/
+    curr->dinamic_prio = curr->static_prio;
     task_switch(dispatcher);
 }
