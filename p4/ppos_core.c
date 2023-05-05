@@ -1,12 +1,21 @@
+// GRR20206144 Pedro Henrique Kochinki Silva
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <signal.h>
+#include <sys/time.h>
 #include "ppos.h"
 #include "queue.h"
 #define STACKSIZE 64 * 1024 /* threads stach size */
 #define ALPHA -1
+
 task_t *main_task, *curr, *dispatcher, *task_queue;
 ucontext_t main_context;
+
+// estrutura que define um tratador de sinal (deve ser global ou static)
+struct sigaction action ;
+
+// estrutura de inicialização do timer
+struct itimerval timer;
 
 /*define the status codes*/
 typedef enum {
@@ -53,10 +62,11 @@ int task_getprio(task_t *task) {
 task_t *scheduler() {
 
     task_t *aux = task_queue;
-    task_t *next = aux;
+    task_t *next = task_queue;
+
     for (int i = 0; i < queue_size((queue_t *)task_queue); i++) {
-        if (aux->dinamic_prio + ALPHA >= -20 && aux != curr) aux->dinamic_prio += ALPHA; //increase priority
         if (next->dinamic_prio > aux->dinamic_prio) next = aux; //select the highest
+        if (aux->dinamic_prio + ALPHA >= -20 && aux != curr) aux->dinamic_prio += ALPHA; //increase priority
         aux = aux->next;
     }
     return next;
