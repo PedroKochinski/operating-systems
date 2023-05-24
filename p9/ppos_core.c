@@ -85,12 +85,14 @@ void task_resume(task_t *task, task_t **queue) {
 
 void check_suspended_queue() {
     if (suspended_queue != NULL) {
-        task_t *aux = suspended_queue->next;
+        task_t *aux1 = suspended_queue->next;
+        task_t *aux2 = suspended_queue->next;
         for (int i = 0; i < queue_size((queue_t *)suspended_queue); i++) {
-            if (aux->wake_up_time <= systime() && aux->wake_up_time != -1) {
-                task_resume(aux, &task_queue);
+            if (aux2->wake_up_time <= systime() && aux2->wake_up_time != -1) {
+                task_resume(aux2, &task_queue);
             }
-            aux = aux->next;
+            aux1 = aux1->next;
+            aux2 = aux1;
         }
     }
 }
@@ -189,7 +191,7 @@ void handle_clock_tick() {
 
 void dispatcher_function() {
     /*while there are tasks in the queue*/
-    while (queue_size((queue_t *)task_queue) > 0 || queue_size((queue_t *)suspended_queue) > 0) {
+    while (pCounter > 0) {
         /*the scheduler select the next task*/
 #ifdef DEBUG
         printf("\033[4;36m\033[3mdispatcher_function:\n\033[0m");
@@ -354,6 +356,8 @@ void task_exit(int exit_code) {
     curr->status = TERMINATED;
     curr->exit_code = exit_code;
     curr->dynamic_prio = curr->static_prio;
+    pCounter--;
+    /*run through suspended queue and check if there is another task waiting for the current task to finish*/
     if (queue_size((queue_t *)suspended_queue) > 0) {
         task_t *aux = suspended_queue->next;
         for (int i = 0; i < queue_size((queue_t *)suspended_queue); i++) {
