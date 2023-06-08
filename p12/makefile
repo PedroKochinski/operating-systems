@@ -5,9 +5,9 @@ objs = ppos_core.o queue.o
  
 all: tasks teste
 
-tasks: $(objs)
+tasks: $(objs) 
 
-teste: $(objs)
+teste: $(objs) -lm
 
 debug: CFLAGS += -DDEBUG
 debug: clean tasks teste

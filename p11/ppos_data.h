@@ -4,6 +4,7 @@
 
 // Estruturas de dados internas do sistema operacional
 // GRR20206144 Pedro Henrique Kochinki Silva
+
 #ifndef __PPOS_DATA__
 #define __PPOS_DATA__
 
@@ -18,17 +19,21 @@ typedef struct task_t
   short status ;			// pronta, rodando, suspensa, ...
   int static_prio ;
   int dynamic_prio ;
+  int exit_code ;
   unsigned int init_time ;
   unsigned int proc_time ;
   unsigned int activations ;
   int quantum ;
+  int wake_up_time ;
+  int waiting_id ;
   // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 
 // estrutura que define um semáforo
 typedef struct
 {
-  // preencher quando necessário
+  int counter;
+  task_t * semaphore_queue;
 } semaphore_t ;
 
 // estrutura que define um mutex

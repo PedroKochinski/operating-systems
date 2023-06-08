@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-
+#include <string.h>
 #include "ppos.h"
 #include "queue.h"
 #define STACKSIZE 64 * 1024 /* threads stach size */
@@ -56,6 +56,67 @@ void leave_cs(int *lock) {
     (*lock) = 0;
 }
 
+int mqueue_init(mqueue_t *queue, int max, int size) {
+    if (!queue || max <= 0 || size <= 0)
+        return -1;
+    
+    queue->max = max;
+    queue->size = size;
+    queue->queue = calloc(max, size);
+    queue->start = 0;
+    queue->end = 0;
+    queue->msg_qtd = 0;
+    sem_init(&queue->s_buffer, 1);
+    sem_init(&queue->s_positions, max);
+    sem_init(&queue->s_items, 0);
+    return 0;
+}
+
+int mqueue_send(mqueue_t *queue, void *msg) {
+    if (!queue->queue || !msg)
+        return -1;
+    
+    sem_down(&queue->s_positions);
+    sem_down(&queue->s_buffer);
+    int offset = queue->end*queue->size;
+    memcpy(queue->queue + offset, msg, queue->size);
+    queue->end = (queue->end + 1) % queue->max;
+    queue->msg_qtd++;
+    sem_up(&queue->s_buffer);
+    sem_up(&queue->s_items);
+    return 0;
+}
+
+int mqueue_recv(mqueue_t *queue, void *msg) {
+    if (!queue->queue || !msg)
+        return -1;
+    sem_down(&queue->s_items);
+    sem_down(&queue->s_buffer);
+    memcpy(msg, queue->queue + queue->start * queue->size, queue->size);
+    queue->start = (queue->start + 1) % queue->max;
+    queue->msg_qtd--;
+    sem_up(&queue->s_buffer);
+    sem_up(&queue->s_positions);
+    return 0;
+}
+
+int mqueue_destroy(mqueue_t *queue) {
+    if (!queue)
+        return -1;
+    sem_destroy(&queue->s_buffer);
+    sem_destroy(&queue->s_positions);
+    sem_destroy(&queue->s_items);
+    queue->queue = NULL;
+    return 0;
+}
+
+int mqueue_msgs(mqueue_t *queue) {
+    if (!queue)
+        return -1;
+    
+    return queue->msg_qtd;
+}
+
 int sem_init(semaphore_t *s, int value) {
 #ifdef DEBUG
     printf("\033[4;33m\033[3msem_init %d\n\033[0m", value);
@@ -64,6 +125,7 @@ int sem_init(semaphore_t *s, int value) {
         enter_cs(&lock);
         s->counter = value;         // quantos processos podem entrar na região crítica
         s->semaphore_queue = NULL;  // fila de processos bloqueados no semáforo quando não há mais espaço
+        s->is_destroyed = 0;
         leave_cs(&lock);
         return 0;
     } else {
@@ -75,7 +137,7 @@ int sem_down(semaphore_t *s) {
 #ifdef DEBUG
     printf("\033[4;33m\033[3msem_down by task %d\n\033[0m", curr->id);
 #endif
-    if (s) {
+    if (s && s->is_destroyed == 0) {
         enter_cs(&lock);
         s->counter--;
         leave_cs(&lock);
@@ -95,7 +157,7 @@ int sem_up(semaphore_t *s) {
 #ifdef DEBUG
     printf("\033[4;33m\033[3msem_up %d\n\033[0m", curr->id);
 #endif
-    if (s) {
+    if (s  && s->is_destroyed == 0) {
         enter_cs(&lock);
         s->counter++;
         leave_cs(&lock);
@@ -117,8 +179,9 @@ int sem_up(semaphore_t *s) {
 int sem_destroy(semaphore_t *s) {
     if (s) {
         while (s->semaphore_queue) {
-            task_resume(s->semaphore_queue, &s->semaphore_queue);
+            task_resume((task_t *)s->semaphore_queue, (task_t **)&s->semaphore_queue);
         }
+        s->is_destroyed = 1;
         return 0;
     } else {
         return -1;
